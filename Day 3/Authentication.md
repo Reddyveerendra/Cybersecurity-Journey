@@ -216,7 +216,7 @@ Instead of repeatedly sending passwords, it uses **tickets**.
 - Domain Controller (KDC)
 - Ticket Granting Ticket (TGT)
 - Service Ticket
-- Resource Server
+- Resource Server 
 
 ---
 
