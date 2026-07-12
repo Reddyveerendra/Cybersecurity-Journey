@@ -1,4 +1,4 @@
-# Day 1 – Active Directory Fundamentals (Learning)
+# Day 9 – Active Directory Fundamentals (Learning)
 
 ## Objective
 
