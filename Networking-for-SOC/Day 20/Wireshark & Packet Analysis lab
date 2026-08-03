@@ -1,0 +1,728 @@
+# Day 4 – Wireshark & Packet Analysis Lab
+
+## Objective
+
+Learn how to capture and analyze network traffic using **Wireshark** and understand how packet-level analysis can help a SOC analyst investigate network activity.
+
+---
+
+## 1. Wireshark
+
+Wireshark is a network protocol analyzer used to capture and inspect network packets in real time.
+
+It helps analysts understand:
+
+* Source and destination IP addresses
+* Network protocols
+* Ports
+* TCP connections
+* DNS queries
+* HTTP/HTTPS traffic
+* ICMP traffic
+* ARP communication
+* Packet size and timing
+* Suspicious network behavior
+
+---
+
+# 2. DNS Packet Analysis
+
+Run:
+
+```cmd
+ping google.com
+```
+
+Before the ICMP ping can happen, the system may need to resolve `google.com` to an IP address using DNS.
+
+### Wireshark Filter
+
+```text
+dns
+```
+
+### Analyze
+
+* Source IP
+* Destination IP
+* DNS server
+* Query name
+* Query type
+* Response IP address
+* Packet size
+
+Example flow:
+
+```text
+Client
+   |
+   | DNS Query: google.com
+   v
+DNS Server
+   |
+   | DNS Response: IP Address
+   v
+Client
+```
+
+### SOC Perspective
+
+DNS traffic can be analyzed to identify:
+
+* Malicious domains
+* Command and Control (C2)
+* DNS tunneling
+* DGA domains
+* Suspicious DNS queries
+
+---
+
+# 3. ICMP Packet Analysis
+
+The `ping` command uses **ICMP** for communication.
+
+Run:
+
+```cmd
+ping google.com
+```
+
+### Wireshark Filter
+
+```text
+icmp
+```
+
+You may observe:
+
+```text
+ICMP Echo Request
+ICMP Echo Reply
+```
+
+### Flow
+
+```text
+Your PC
+   |
+   | ICMP Echo Request
+   v
+Destination
+   |
+   | ICMP Echo Reply
+   v
+Your PC
+```
+
+### Common ICMP Types
+
+| Type | Description             |
+| ---- | ----------------------- |
+| 0    | Echo Reply              |
+| 3    | Destination Unreachable |
+| 8    | Echo Request            |
+| 11   | Time Exceeded           |
+
+### SOC Perspective
+
+ICMP can be used for:
+
+* Network troubleshooting
+* Host discovery
+* Network scanning
+* ICMP tunneling
+* Covert communication
+
+### Important
+
+`ping google.com` may generate **DNS + ICMP traffic**:
+
+1. DNS resolves `google.com` to an IP address.
+2. ICMP is used for the actual ping request and reply.
+
+---
+
+# 4. HTTP Packet Analysis
+
+HTTP is an unencrypted application-layer protocol.
+
+### Wireshark Filter
+
+```text
+http
+```
+
+Look for:
+
+* GET
+* POST
+* HTTP response
+* Host
+* URI
+* User-Agent
+* Source IP
+* Destination IP
+* Source Port
+* Destination Port
+* Packet Length
+
+Typical HTTP communication:
+
+```text
+Client
+   |
+   | HTTP GET
+   v
+Web Server
+   |
+   | HTTP Response
+   v
+Client
+```
+
+### Default Port
+
+```text
+TCP 80
+```
+
+### SOC Perspective
+
+Because HTTP is unencrypted, packet capture may expose:
+
+* URLs
+* HTTP headers
+* User-Agent
+* Data transferred
+* Potential credentials
+
+---
+
+# 5. HTTPS / TLS Packet Analysis
+
+HTTPS encrypts HTTP communication using TLS.
+
+### Wireshark Filters
+
+```text
+tls
+```
+
+or:
+
+```text
+tcp.port == 443
+```
+
+Analyze:
+
+* Source IP
+* Destination IP
+* TCP Port
+* TLS version
+* TLS handshake
+* Certificate information
+* Packet size
+* Connection timing
+
+### Default Port
+
+```text
+TCP 443
+```
+
+Unlike HTTP, the actual application data is encrypted.
+
+### SOC Perspective
+
+Even when traffic is encrypted, analysts can investigate:
+
+* Destination IP
+* Domain information
+* TLS metadata
+* Certificate information
+* Connection timing
+* Traffic volume
+* TLS fingerprints such as JA3/JA4, when available
+
+---
+
+# 6. TCP Three-Way Handshake
+
+TCP establishes a connection using a three-way handshake.
+
+### Flow
+
+```text
+Client                    Server
+
+   | ---- SYN ------------> |
+   |                         |
+   | <--- SYN + ACK -------- |
+   |                         |
+   | ---- ACK -------------> |
+   |                         |
+   |    Connection Ready     |
+```
+
+### Steps
+
+#### 1. SYN
+
+Client requests a TCP connection.
+
+#### 2. SYN + ACK
+
+Server accepts the request and responds.
+
+#### 3. ACK
+
+Client confirms the connection.
+
+### Wireshark Filter
+
+```text
+tcp
+```
+
+Find packets containing:
+
+```text
+SYN
+SYN, ACK
+ACK
+```
+
+### Useful Filter
+
+Find initial TCP SYN packets:
+
+```text
+tcp.flags.syn == 1 && tcp.flags.ack == 0
+```
+
+### SOC Perspective
+
+A single SYN packet is normal.
+
+However, a large number of SYN requests can indicate:
+
+* Port scanning
+* Network reconnaissance
+* SYN flood attacks
+
+Example:
+
+```text
+One Internal Host
+        |
+        | Many SYN packets
+        v
+Multiple IPs / Ports
+        |
+        v
+Possible Network Scanning
+```
+
+---
+
+# 7. ARP Packet Analysis
+
+ARP maps an IP address to a MAC address on a local network.
+
+### Wireshark Filter
+
+```text
+arp
+```
+
+You may see:
+
+```text
+Who has 192.168.1.1?
+Tell 192.168.1.10
+```
+
+Then:
+
+```text
+192.168.1.1 is at XX:XX:XX:XX:XX:XX
+```
+
+### ARP Mapping
+
+```text
+IP Address
+    ↓
+MAC Address
+```
+
+### SOC Perspective
+
+ARP analysis can help identify:
+
+* ARP spoofing
+* Man-in-the-Middle attacks
+* Rogue devices
+* Duplicate IP/MAC relationships
+
+Example suspicious behavior:
+
+```text
+Gateway IP
+192.168.1.1
+    |
+    | Suddenly associated with
+    v
+Unknown / Attacker MAC Address
+```
+
+This could indicate ARP spoofing.
+
+---
+
+# 8. Important Wireshark Filters
+
+## DNS
+
+```text
+dns
+```
+
+## HTTP
+
+```text
+http
+```
+
+## TLS / HTTPS
+
+```text
+tls
+```
+
+## ICMP
+
+```text
+icmp
+```
+
+## ARP
+
+```text
+arp
+```
+
+## TCP
+
+```text
+tcp
+```
+
+## Specific IP
+
+```text
+ip.addr == 192.168.1.10
+```
+
+## Source IP
+
+```text
+ip.src == 192.168.1.10
+```
+
+## Destination IP
+
+```text
+ip.dst == 8.8.8.8
+```
+
+## Specific Port
+
+```text
+tcp.port == 443
+```
+
+## TCP SYN
+
+```text
+tcp.flags.syn == 1
+```
+
+## TCP SYN Without ACK
+
+```text
+tcp.flags.syn == 1 && tcp.flags.ack == 0
+```
+
+This identifies initial TCP connection attempts.
+
+---
+
+# 9. Follow TCP Stream
+
+Right-click a TCP packet:
+
+```text
+Right Click
+    ↓
+Follow
+    ↓
+TCP Stream
+```
+
+This reconstructs the communication between the client and server for that TCP session.
+
+For unencrypted HTTP, you may be able to observe:
+
+```text
+GET /index.html
+Host: example.com
+User-Agent: ...
+```
+
+For HTTPS, application data remains encrypted.
+
+### SOC Use Cases
+
+Follow TCP Stream helps analysts investigate:
+
+* Client-server communication
+* HTTP requests
+* HTTP responses
+* Suspicious payloads
+* Potential malicious activity
+
+---
+
+# 10. Conversations
+
+Navigate to:
+
+```text
+Statistics
+    ↓
+Conversations
+```
+
+You can inspect:
+
+* Ethernet
+* IPv4
+* IPv6
+* TCP
+* UDP
+
+Useful information includes:
+
+* Source IP
+* Destination IP
+* Source Port
+* Destination Port
+* Packets
+* Bytes
+* Duration
+
+### SOC Perspective
+
+Conversations help identify:
+
+* Top communicating hosts
+* External connections
+* Unusual ports
+* High-volume traffic
+* Suspicious communication patterns
+
+---
+
+# 11. Statistics
+
+Wireshark provides several useful statistics.
+
+## Protocol Hierarchy
+
+Shows the protocols observed in the capture.
+
+Example:
+
+```text
+Ethernet
+   └── IPv4
+        └── TCP
+             └── TLS
+```
+
+## Conversations
+
+Shows communication between endpoints.
+
+## Endpoints
+
+Shows IP addresses involved in network communication.
+
+## IO Graph
+
+Shows network traffic over time.
+
+Useful for identifying:
+
+* Traffic spikes
+* High-volume communication
+* Possible network anomalies
+
+---
+
+# 12. Packet Analysis Checklist
+
+When investigating a packet or network connection, identify:
+
+| Field            | Description                      |
+| ---------------- | -------------------------------- |
+| Source IP        | Who sent the packet?             |
+| Destination IP   | Who received the packet?         |
+| Protocol         | TCP, UDP, DNS, HTTP, ICMP, etc.  |
+| Source Port      | Source application port          |
+| Destination Port | Target service port              |
+| Packet Size      | Amount of data transferred       |
+| Timestamp        | When the event occurred          |
+| TCP Flags        | SYN, ACK, FIN, RST               |
+| Domain           | Domain involved in communication |
+| Action           | Normal or suspicious?            |
+
+---
+
+# 13. SOC Investigation Mindset
+
+A SOC analyst should move beyond simply looking at packets.
+
+The goal is to answer:
+
+```text
+Who communicated?
+        ↓
+Who was the destination?
+        ↓
+Which protocol was used?
+        ↓
+Which port was used?
+        ↓
+What type of communication occurred?
+        ↓
+Is the behavior expected?
+        ↓
+Could it indicate malicious activity?
+```
+
+---
+
+# 14. Day 4 Practical Lab
+
+Perform the following tasks:
+
+* [ ] Install Wireshark
+* [ ] Identify the active network interface
+* [ ] Start a packet capture
+* [ ] Run `ping google.com`
+* [ ] Find the DNS query
+* [ ] Find ICMP Echo Request
+* [ ] Find ICMP Echo Reply
+* [ ] Capture HTTP traffic
+* [ ] Analyze an HTTP GET request
+* [ ] Capture HTTPS/TLS traffic
+* [ ] Identify the TCP three-way handshake
+* [ ] Capture ARP traffic
+* [ ] Analyze TCP SYN packets
+* [ ] Use `Follow TCP Stream`
+* [ ] Open `Statistics → Conversations`
+* [ ] Review `Protocol Hierarchy`
+* [ ] Review `Endpoints`
+* [ ] Analyze packet source and destination IPs
+* [ ] Identify protocols and ports
+* [ ] Compare normal vs suspicious traffic
+
+---
+
+# 15. SOC Detection Connection: Wireshark vs KQL
+
+Wireshark is useful for **packet-level investigation**.
+
+KQL is useful for **large-scale log analysis and detection**.
+
+Example:
+
+```text
+Wireshark
+    ↓
+Analyze individual packets
+    ↓
+Understand TCP flags
+    ↓
+Investigate one network session
+```
+
+```text
+KQL
+    ↓
+Search large volumes of network logs
+    ↓
+Find repeated SYN attempts
+    ↓
+Identify scanning patterns
+    ↓
+Create detection rules
+```
+
+For example, if network logs expose TCP flags, a KQL query could identify SYN packets without ACK:
+
+```kusto
+YourNetworkLogs
+| where Protocol =~ "TCP"
+| where TcpFlags has "SYN"
+| where not(TcpFlags has "ACK")
+| summarize
+    Attempts = count(),
+    UniquePorts = dcount(DstPort),
+    UniqueIPs = dcount(DstIpAddr)
+    by SrcIpAddr, bin(TimeGenerated, 5m)
+| where Attempts > 100
+```
+
+> Note: The actual field names depend on your log source. `TcpFlags`, `SrcIpAddr`, `DstIpAddr`, and `DstPort` are examples.
+
+### SOC Detection Logic
+
+```text
+One Source IP
+      ↓
+Many SYN Requests
+      ↓
+Many Destination Ports
+      ↓
+Few Successful Connections
+      ↓
+Potential Port Scanning
+```
+
+---
+
+# Key Takeaways
+
+* `ping` uses **ICMP** for Echo Request and Echo Reply.
+* `ping google.com` may first use **DNS** to resolve the hostname.
+* HTTP normally uses **TCP 80**.
+* HTTPS normally uses **TCP 443**.
+* TCP uses **SYN → SYN/ACK → ACK** to establish a connection.
+* ARP maps **IP addresses to MAC addresses** on local networks.
+* `Follow TCP Stream` reconstructs TCP conversations.
+* `Conversations` helps identify communicating hosts.
+* `Statistics` provides an overview of captured traffic.
+* A **SYN without ACK** is normal for an initial TCP connection attempt.
+* A high volume of SYN packets across many ports/IPs may indicate **network scanning**.
+* Wireshark provides **packet-level visibility**.
+* KQL provides **large-scale log analysis and detection**.
+
+## SOC Perspective
+
+The main objective of packet analysis is to understand:
+
+> **Who communicated with whom, using which protocol and port, what happened during the communication, and whether the behavior is normal or potentially malicious.**
